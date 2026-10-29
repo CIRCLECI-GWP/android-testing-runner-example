@@ -34,22 +34,6 @@ class TasksViewModel(
     private val tasksRepository: TasksRepository
 ) : ViewModel() {
 
-    private val _forceUpdate = MutableLiveData<Boolean>(false)
-
-    private val _items: LiveData<List<Task>> = _forceUpdate.switchMap { forceUpdate ->
-        if (forceUpdate) {
-            _dataLoading.value = true
-            viewModelScope.launch {
-                tasksRepository.refreshTasks()
-                _dataLoading.value = false
-            }
-        }
-        tasksRepository.observeTasks().switchMap { filterTasks(it) }
-
-    }
-
-    val items: LiveData<List<Task>> = _items
-
     private val _dataLoading = MutableLiveData<Boolean>()
     val dataLoading: LiveData<Boolean> = _dataLoading
 
@@ -81,8 +65,26 @@ class TasksViewModel(
 
     private var resultMessageShown: Boolean = false
 
+    // Declared after the state above: switchMap (Lifecycle 2.6+) runs its lambda immediately
+    // when the source already has a value, which calls filterTasks() during construction.
+    private val _forceUpdate = MutableLiveData<Boolean>(false)
+
+    private val _items: LiveData<List<Task>> = _forceUpdate.switchMap { forceUpdate ->
+        if (forceUpdate) {
+            _dataLoading.value = true
+            viewModelScope.launch {
+                tasksRepository.refreshTasks()
+                _dataLoading.value = false
+            }
+        }
+        tasksRepository.observeTasks().switchMap { filterTasks(it) }
+
+    }
+
+    val items: LiveData<List<Task>> = _items
+
     // This LiveData depends on another so we can use a transformation.
-    val empty: LiveData<Boolean> = Transformations.map(_items) {
+    val empty: LiveData<Boolean> = _items.map {
         it.isEmpty()
     }
 
