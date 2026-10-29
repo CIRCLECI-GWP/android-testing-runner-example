@@ -19,7 +19,12 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.circleci.samples.todoapp.MainCoroutineRule
 import com.circleci.samples.todoapp.data.source.FakeTestRepository
 import com.circleci.samples.todoapp.getOrAwaitValue
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.hamcrest.CoreMatchers.`is`
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.Before
@@ -67,9 +72,9 @@ class StatisticsViewModelTest {
     }
 
     @Test
-    fun loadTasks_loading() {
-        // Pause dispatcher so we can verify initial values
-        mainCoroutineRule.pauseDispatcher()
+    fun loadTasks_loading() = runTest {
+        // Use a StandardTestDispatcher so coroutines don't run until advanced
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
 
         // Load the task in the viewmodel
         statisticsViewModel.refresh()
@@ -78,7 +83,7 @@ class StatisticsViewModelTest {
         assertThat(statisticsViewModel.dataLoading.getOrAwaitValue(), `is`(true))
 
         // Execute pending coroutines actions
-        mainCoroutineRule.resumeDispatcher()
+        advanceUntilIdle()
 
         // Then progress indicator is hidden
         assertThat(statisticsViewModel.dataLoading.getOrAwaitValue(), `is`(false))
